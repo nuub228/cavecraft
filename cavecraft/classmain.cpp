@@ -6,7 +6,11 @@
 #define MAXDROP 32767 //0...32767
 
 struct Tdrop {
-    int item_d, x_d, y_d;
+    int item_id, x_d, y_d;
+};
+
+struct Tinv {
+    int item_id, item_count;
 };
 
 class Main {
@@ -16,14 +20,18 @@ public:
     int del1, del2;
     int x, y, camx, camy, pos, curx, cury;
     int invslot;
+    Tinv inv[36];
 
     bool mode, jmp, fall, deb;
     int frameStart, frameTime;
     const int FPS = 30;
     int frameDelay = 1000 / FPS;
-    bool game = 1;
+    bool gamerunning = 1;
     Tdrop drop[MAXDROP + 1];
     int map[X + 1][Y + 1];
+    SDL_Color color;
+    TTF_Font* font;
+    SDL_Surface* textsurface;
 
     SDL_DisplayMode displayMode;
     SDL_Window* window;
@@ -32,7 +40,6 @@ public:
     SDL_Rect tex[256];
     SDL_Surface* imtexdrop;
     SDL_Rect droptex[256];
-
     SDL_Surface* plrtex;
     SDL_Rect plr[2];
 
@@ -51,6 +58,9 @@ public:
         width = (displayMode.w - (displayMode.w % 16)) / 2;
         height = (displayMode.h - (displayMode.h % 16)) / 2;
         window = SDL_CreateWindow("CaveCraft 1.0", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_SHOWN);
+
+        TTF_Init();
+        font = TTF_OpenFont("slkscre.ttf", 8);
 
         screenSurface = SDL_GetWindowSurface(window);
         for (int i = 0; i < 322; i++) { // init them all to false
@@ -75,6 +85,7 @@ public:
             switch (event.type) {
 
             case SDL_KEYDOWN:
+			std::cout << event.key.keysym.sym << std::endl;
                 KEYS[event.key.keysym.sym] = true;
                 break;
             case SDL_KEYUP:
@@ -85,30 +96,32 @@ public:
             }
         }
     };
-	
-	bool coll(){
-		int ix,iy,ix1,iy1,iy2;
-			
-		ix = x/16;
-		iy = y/16;
-		ix1 = (x+7)/16;
-		iy1 = (y+15)/16;
-		iy2 = (y+31)/16;
-		if(ix >= 0 && ix1 <= 255 && iy >= 0 && iy2 <= 127){
-			if (map[ix][iy]>0 || map[ix1][iy]>0 || map[ix][iy1]>0 || map[ix][iy2]>0 || map[ix1][iy1]>0 || map[ix1][iy2]>0){
-				return true;
-			} else {
-			return false;
-			}
-		}
-	};
+
+    bool coll()
+    {
+        int ix, iy, ix1, iy1, iy2;
+
+        ix = x / 16;
+        iy = y / 16;
+        ix1 = (x + 7) / 16;
+        iy1 = (y + 15) / 16;
+        iy2 = (y + 31) / 16;
+        if (ix >= 0 && ix1 <= 255 && iy >= 0 && iy2 <= 127) {
+            if (map[ix][iy] > 0 || map[ix1][iy] > 0 || map[ix][iy1] > 0 || map[ix][iy2] > 0 || map[ix1][iy1] > 0 || map[ix1][iy2] > 0) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    };
 
     void keyhandler()
     {
 
         keyboard();
         if (KEYS[27]) //esc exit
-            game = 0;
+            gamerunning = 0;
         if (KEYS[109]) { //cursor mode true
             mode = true;
             curx = x / 16;
@@ -148,20 +161,17 @@ public:
             if (KEYS[97]) {
                 x -= velx;
                 pos = 0;
-				if(coll()) x +=velx;
+                if (coll())
+                    x += velx;
             }
             if (KEYS[100]) {
                 x += velx;
                 pos = 1;
-				if(coll()) x -=velx;
+                if (coll())
+                    x -= velx;
             }
         } //player move
-        else {
-            if (KEYS[13]) { //block break (key "enter")
-                createdrop(map[curx][cury], curx * 16, cury * 16);
-                map[curx][cury] = 0;
-            }
-        }
+		if (mode == true) {
         if (KEYS[115]) { //cursor up
             cury++;
             if (cury > 127)
@@ -182,19 +192,95 @@ public:
             if (curx > 255)
                 curx = 255;
         } //d
+        if (KEYS[103]) { //cursor right
+            setblock(curx, cury);
+        } //g
+            if (KEYS[13]) { //block break (key "enter")
+                createdrop(map[curx][cury], curx * 16, cury * 16);
+                map[curx][cury] = 0;
+            }
+		}
+        if (KEYS[120]) {
+            deb = 1;
+        }
+        if (KEYS[122]) {
+            deb = 0;
+        }
+    }
+
+    void phyhandler()
+    {
+
+        if (fall) {
+            if (vely > -16)
+                vely -= acc;
+            y -= vely;
+        }
+        if (coll()) {
+            while (coll()) {
+                if (vely < 0) {
+                    y--;
+                    jmp = true;
+                }
+                else {
+                    y++;
+                    vely = 0;
+                    jmp = false;
+                }
+            }
+            vely = 0;
+        }
+        else {
+            fall = true;
+        }
+    }
+    void setblock(int ix, int iy)
+    {
+
+        if (map[ix][iy] == 0)
+            if (inv[invslot].item_id > 0 && inv[invslot].item_count > 0) {
+                map[ix][iy] = inv[invslot].item_id;
+                inv[invslot].item_count--;
+            }
     }
     void createdrop(int it, int ix, int iy)
     {
 
         if (it > 0) {
             for (int iz = 0; iz <= MAXDROP; iz++)
-                if (drop[iz].item_d == 0) {
-                    drop[iz].item_d = it;
+                if (drop[iz].item_id == 0) {
+                    drop[iz].item_id = it;
                     drop[iz].x_d = ix;
                     drop[iz].y_d = iy;
                     break;
                 }
         }
+    }
+    void getdrop()
+    {
+        for (int ix = 0; ix <= MAXDROP; ix++) {
+            if (drop[ix].item_id)
+                if (x + 8 > drop[ix].x_d && x < drop[ix].x_d + 8 && y + 32 > drop[ix].y_d && y < drop[ix].y_d + 8) {
+                    for (int iy = 0; iy <= 35; iy++) {
+                        if (inv[iy].item_count < 64) {
+                            if (inv[iy].item_id == drop[ix].item_id || inv[iy].item_count == 0) {
+                                inv[iy].item_id = drop[ix].item_id;
+                                inv[iy].item_count++;
+                                drop[ix].item_id = 0;
+                                break;
+                            }
+                        }
+                    }
+                }
+        }
+    }
+    void game()
+    {
+        getdrop();
+        if (x < 0)
+            x = 0;
+        if (x + 8 > 4094)
+            x = 4086;
     }
     void newworld()
     {
@@ -285,14 +371,64 @@ public:
                     drawblock(map[ix][iy], (ix * 16) - camx, (iy * 16) - camy);
         //{===================[Дроп]===================}
         for (int ix = 0; ix <= MAXDROP; ix++)
-            drawdrop(drop[ix].item_d, drop[ix].x_d - camx, drop[ix].y_d - camy);
+            drawdrop(drop[ix].item_id, drop[ix].x_d - camx, drop[ix].y_d - camy);
 
         //{===================[Инрок]===================}
         drawplayer(pos, x - camx, y - camy);
         //{===================[Интерфейс]===================}
+        tmp_ax = (width / 2) - (162 / 2);
         if (mode)
             drawcursor(curx * 16 - camx, cury * 16 - camy);
+        drawgui(tmp_ax, 0);
+        for (int ix = 0; ix <= 8; ix++)
+            if (inv[ix].item_id > 0 && inv[ix].item_count > 0) {
+                drawinvitem(inv[ix].item_id, (ix * 16) + tmp_ax + ix * 2 + 1, 1);
+                if (inv[ix].item_count > 1) {
+                    this->setcolor(0, 0, 0);
+                    drawtext(std::to_string(inv[ix].item_count), (ix * 16) + tmp_ax + ix * 2 + 1, 1);
+                }
+            }
+        drawcursor((invslot * 16) + tmp_ax + invslot * 2 + 1, 1);
+        if (deb) {
+            debug_info();
+        }
     };
+    void debug_info()
+    {
+		std::string temp_string;
+		temp_string = "X: "+std::to_string(x / 16-128);
+        drawtext(temp_string, 0, 0);
+		temp_string = "y: "+std::to_string(y / 16);
+        drawtext(temp_string, 0, 16);
+		temp_string = "CURX: "+std::to_string(curx-128);
+        drawtext(temp_string, 0, 32);
+		temp_string = "CURY: "+std::to_string(cury);
+        drawtext(temp_string, 0, 48);
+
+    }
+    void drawtext(std::string txt, int x, int y)
+    {
+
+        textsurface = TTF_RenderText_Solid(font, txt.c_str(), color);
+        SDL_Rect xy_rect = { x, y, 0, 0 };
+        SDL_BlitSurface(textsurface, NULL, screenSurface, &xy_rect);
+    }
+    void setcolor(Uint8 r, Uint8 g, Uint8 b)
+    {
+        color = { r, g, b };
+    }
+    void drawinvitem(int blockid, int x, int y)
+    {
+        SDL_Rect xy_rect = { x, y, 16, 16 };
+        SDL_BlitSurface(imtex, &tex[blockid], screenSurface, &xy_rect);
+    }
+    void drawgui(int x, int y)
+    {
+
+        SDL_Rect xy_rect = { x, y, 162, 18 };
+
+        SDL_BlitSurface(guitex, &gui[1], screenSurface, &xy_rect);
+    }
     void drawblock(int blockid, int x, int y)
     {
         if (blockid == 0) {
