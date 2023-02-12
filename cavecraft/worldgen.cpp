@@ -136,5 +136,6 @@ public:
         for (int iy = 0; iy <= 127; iy++)
             if (map[128][iy] != 0)
                 return (iy - 2) * 16;
+			
     };
 };

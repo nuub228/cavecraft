@@ -1,5 +1,9 @@
-#include <SDL2/SDL_image.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
+#include <string>
+
+
 #include "classmain.cpp"
 
 #define X 255
@@ -20,15 +24,12 @@ int main(int argc, char* argv[])
     _vars.x = 2048;
     _vars.y = _vars.world.getply();
 	
-    while (_vars.game) {
+    while (_vars.gamerunning) {
 		_vars.proc_fps();
 		_vars.keyhandler();
-
+		_vars.phyhandler();
+		_vars.game();
 		
-		
-		// phyhandler;
-		// keyhandler;
-		// game;
         _vars.draw();//доделать!
         _vars.maxfps();
 		SDL_UpdateWindowSurface(_vars.window);
