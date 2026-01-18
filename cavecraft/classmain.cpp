@@ -122,12 +122,12 @@ public:
         keyboard();
         if (KEYS[27]) //esc exit
             gamerunning = 0;
-        if (KEYS[109]) { //cursor mode true
+        if (KEYS[109]) { //cursor mode true (m key)
             mode = true;
             curx = x / 16;
             cury = y / 16;
         }
-        if (KEYS[110]) { //cursor mode false
+        if (KEYS[110]) { //cursor mode false (n key)
 
             mode = false;
         }
