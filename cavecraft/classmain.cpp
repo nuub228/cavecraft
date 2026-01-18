@@ -192,7 +192,7 @@ public:
             if (curx > 255)
                 curx = 255;
         } //d
-        if (KEYS[103]) { //cursor right
+        if (KEYS[103]) { //cursor set block
             setblock(curx, cury);
         } //g
             if (KEYS[13]) { //block break (key "enter")
@@ -200,10 +200,10 @@ public:
                 map[curx][cury] = 0;
             }
 		}
-        if (KEYS[120]) {
+        if (KEYS[120]) { //debug on
             deb = 1;
         }
-        if (KEYS[122]) {
+        if (KEYS[122]) { //debug off
             deb = 0;
         }
     }
@@ -467,4 +467,5 @@ public:
             SDL_Delay(frameDelay - frameTime);
         }
     }
+
 };
